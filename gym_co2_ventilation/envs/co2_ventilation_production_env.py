@@ -7,11 +7,11 @@ import numpy as np
 import requests
 from azure.servicebus import ServiceBusService, Message, Topic, Rule
 
-# SERVICE_BUS_NAMESPACE = "YourServiceBusNamespace"
-# SERVICE_BUS_SAS_KEY_NAME = "YourSharedAccessKeyName"
-# SERVICE_BUS_SAS_KEY_VALUE = "YourSharedAccessKeyValue"
-# VENTILATION_REST_URL = "YourRESTAPIURL"
-# VENTILATION_REST_API_KEY = "YourRESTAPIKey"
+SERVICE_BUS_NAMESPACE = "YourServiceBusNamespace"
+SERVICE_BUS_SAS_KEY_NAME = "YourSharedAccessKeyName"
+SERVICE_BUS_SAS_KEY_VALUE = "YourSharedAccessKeyValue"
+VENTILATION_REST_URL = "YourRESTAPIURL"
+VENTILATION_REST_API_KEY = "YourRESTAPIKey"
 
 CO2_SENSOR_ID = "1401011"
 
