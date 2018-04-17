@@ -1,4 +1,4 @@
-# How to create and install a custom Open AI Gym Environment to use with Reinformcement Learning
+# How to create and install a custom Open AI Gym Environment to use with Reinforcement Learning
 
 ### Author: [Olav Tollefsen](https://www.linkedin.com/in/olavtollefsen/)
 
