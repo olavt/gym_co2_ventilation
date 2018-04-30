@@ -8,15 +8,16 @@ This repository contains two custom OpenAI Gym environments, which can be used b
 
 ## System Requirements
 
-- Python 3.6 or higher
+- Python 3.6 or higher (64-bit version)
 - PIP
 
 ## Installation of the custom Gym environments
 
-Clone the repository to a directory, change default directory to the top-level directory of the cloned repository and issue the following PIP command:
+
+Download and install the gym_co2_ventilation directly from GitHub using this command:
 
 ```
-$ pip install -e .
+$ pip install -e git+https://github.com/olavt/gym_co2_ventilation.git#egg=gym_co2_ventilation
 ```
 
 You may need to restart Python in order for the new Gym environmnet to be available for use.

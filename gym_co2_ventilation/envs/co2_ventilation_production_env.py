@@ -4,14 +4,9 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import json
 import numpy as np
+import os
 import requests
 from azure.servicebus import ServiceBusService, Message, Topic, Rule
-
-SERVICE_BUS_NAMESPACE = "YourServiceBusNamespace"
-SERVICE_BUS_SAS_KEY_NAME = "YourSharedAccessKeyName"
-SERVICE_BUS_SAS_KEY_VALUE = "YourSharedAccessKeyValue"
-VENTILATION_REST_URL = "YourRESTAPIURL"
-VENTILATION_REST_API_KEY = "YourRESTAPIKey"
 
 CO2_SENSOR_ID = "1401011"
 
@@ -23,6 +18,13 @@ class CO2VentilationProductionEnv(gym.Env):
         self.step_logger = logging.getLogger("StepLogger")
         self.__version__ = "0.0.1"
         self.logger.info(f"CO2VentilationProductionEnv - Version {self.__version__}")
+
+        # Get config from environment variables
+        self.service_bus_namespace = os.environ["SERVICE_BUS_NAMESPACE"]
+        self.service_bus_sas_key_name = os.environ["SERVICE_BUS_SAS_KEY_NAME"]
+        self.service_bus_sas_key_value = os.environ["SERVICE_BUS_SAS_KEY_VALUE"]
+        self.ventilation_rest_url = os.environ["VENTILATION_REST_URL"]
+        self.ventilation_rest_api_key = os.environ["VENTILATION_REST_API_KEY"]
 
         # Define the action_space
         # 0=VentilationFanSpeed1
