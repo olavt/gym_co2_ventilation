@@ -5,6 +5,7 @@ setup(name='gym_co2_ventilation',
       install_requires=[
             'gym',
             'keras',
+            'keras-rl',
             'requests',
             'tensorflow',
             'azure.servicebus'

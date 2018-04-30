@@ -10,6 +10,7 @@ This repository contains two custom OpenAI Gym environments, which can be used b
 
 - Python 3.6 or higher (64-bit version)
 - PIP
+- Microsoft Visual C++ 2015 Redistributable Update 3 (for Tensorflow)
 
 ## Installation of the custom Gym environments
 
