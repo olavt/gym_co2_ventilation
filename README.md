@@ -14,7 +14,6 @@ This repository contains two custom OpenAI Gym environments, which can be used b
 
 ## Installation of the custom Gym environments
 
-
 Download and install the gym_co2_ventilation directly from GitHub using this command:
 
 ```

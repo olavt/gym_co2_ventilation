@@ -34,9 +34,9 @@ class CO2VentilationProductionEnv(gym.Env):
         self.action_space = spaces.Discrete(4)
 
         # Define the observation_space
-        # First dimension is VentilationFanSpeed
-        # Second dimension is CO2 level in the air
-        # Third dimension is CO2 change from previous state
+        # First dimension is VentilationFanSpeed (0..3)
+        # Second dimension is CO2 level in the air (400...3000)
+        # Third dimension is CO2 change from previous state (-100..100)
         low = np.array([0, 400, -100])
         high = np.array([3, 3000, 100])
         self.observation_space = spaces.Box(low, high)
@@ -63,7 +63,7 @@ class CO2VentilationProductionEnv(gym.Env):
         self._execute_action(action)
 
         # Wait for environment to transition to next state
-        self._wait_for_transition_to_next_state()
+        self._transition_to_next_state()
 
         # Get reward for new state
         reward = self._get_reward(self.current_co2_level, self.current_ventilation_speed, t0_ventilation_speed)
@@ -80,7 +80,6 @@ class CO2VentilationProductionEnv(gym.Env):
         self.curr_iteration += 1
         self.curr_step = 0
         self.total_reward = 0.0
-        ventilation_speed = 1
         co2_level = self.current_co2_level
         co2_diff = self.current_co2_level - self.previous_co2_level
         self.state = (ventilation_speed, co2_level, co2_diff)
@@ -91,19 +90,19 @@ class CO2VentilationProductionEnv(gym.Env):
         self.logger.info(f"Environment state: Fan speed={ventilation_speed + 1}, CO2={co2_level}, CO2Diff={co2_diff}")
 
     def _execute_action(self, action):
+        self.logger.info(f"Executing action, setting fan speed to {action + 1}")
         self.current_ventilation_speed = action
-        self.logger.info(f"Executing action, setting fan speed to {self.current_ventilation_speed + 1}")
         # Call REST service to change the fan speed of the ventilation system
         fanSpeedCommandId = f'FanSpeed{self.current_ventilation_speed + 1}'
         data = '{"deviceGroupId":"Ventilation", "deviceId":"302", "capabilityId":"VentilationFan", "commandId":"' + f'{fanSpeedCommandId}' + '", "parameters":""}'
         try:
-            r = requests.post(f'{VENTILATION_REST_URL}?code={VENTILATION_REST_API_KEY}', data = data)
+            r = requests.post(f'{self.ventilation_rest_url}?code={self.ventilation_rest_api_key}', data = data)
             if r.status_code != 200:
                 self.logger.error(f'REST call to change ventilation speed failed: {r.reason}')
         except:
             self.logger.exception("Exception from REST call to change ventilation fan speed")
 
-    def _wait_for_transition_to_next_state(self):
+    def _transition_to_next_state(self):
         self.logger.info ("Waiting for environment to respond to action...")
         # Note: The timeout should be 120 seconds, but that crashes due to a bug in the Python SDK for Service Bus
         # Wait for new CO2 sensor data to be received
@@ -146,6 +145,12 @@ class CO2VentilationProductionEnv(gym.Env):
 
         return reward
 
+    def _update_co2_level(self, co2_level):
+        self.previous_co2_level = self.current_co2_level
+        self.current_co2_level = co2_level
+        if self.previous_co2_level == 0:
+            self.previous_co2_level = self.current_co2_level
+
     def _get_ventilation_cost(self, ventilation_speed):
         ventilation_speed_cost = [0.0, 0.2, 0.4, 0.8]
         ventilation_cost = ventilation_speed_cost[ventilation_speed]
@@ -153,9 +158,9 @@ class CO2VentilationProductionEnv(gym.Env):
 
     def _initialize_event_subscriber(self):
         self.bus_service = ServiceBusService(
-        service_namespace = SERVICE_BUS_NAMESPACE,
-        shared_access_key_name = SERVICE_BUS_SAS_KEY_NAME,
-        shared_access_key_value = SERVICE_BUS_SAS_KEY_VALUE)
+            service_namespace = self.service_bus_namespace,
+            shared_access_key_name = self.service_bus_sas_key_name,
+            shared_access_key_value = self.service_bus_sas_key_value)
 
         self._remove_all_event_subscriptions()
         self._add_event_subscription(CO2_SENSOR_ID)
@@ -188,7 +193,4 @@ class CO2VentilationProductionEnv(gym.Env):
         sensor_id = sensordata['Id']
         sensor_value = sensordata['Value']
         if (sensor_id == CO2_SENSOR_ID):
-            self.previous_co2_level = self.current_co2_level
-            self.current_co2_level = sensor_value
-            if self.previous_co2_level == 0:
-                self.previous_co2_level = self.current_co2_level
+            self._update_co2_level(sensor_value)

@@ -3,6 +3,8 @@ import gym_co2_ventilation  # This will register the custom environment
 
 import logging
 import numpy as np
+import os
+import pickle
 import requests
 import time
 
@@ -36,17 +38,28 @@ episode_logger = logging.getLogger("EpisodeLogger")
 episode_logger.setLevel(logging.INFO)
 fh = logging.FileHandler(f'co2_ventilation_episode_log_{time.strftime("%Y_%m_%d_%H%M")}.log', mode='w')
 episode_logger.addHandler(fh)
-episode_logger.info("Time,Episode, Reward")
+episode_logger.info("Time,Episode,Reward")
 formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d,%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 fh.setFormatter(formatter)
 
-ENV_NAME = 'CO2VentilationProduction-v0'
+#ENV_NAME = 'CO2VentilationProduction-v0'
+#ENV_NAME = 'CO2VentilationSimulator-v0'
+ENV_NAME = 'CO2VentilationSimple-v0'
+
+# Set environment variables used by the CO2VentilationProduction-v0 environment
+os.environ["SERVICE_BUS_NAMESPACE"] = "<replace with your value>"
+os.environ["SERVICE_BUS_SAS_KEY_NAME"] = "<replace with your value>"
+os.environ["SERVICE_BUS_SAS_KEY_VALUE"] = "<replace with your value>"
+os.environ["VENTILATION_REST_URL"] = "<replace with your value>"
+os.environ["VENTILATION_REST_API_KEY"] = "<replace with your value>"
 
 # Create the environment
 env = gym.make(ENV_NAME)
 np.random.seed(123)
 env.seed(123)
+
 nb_actions = env.action_space.n
+obs_dim = env.observation_space.shape[0]
 
 # Build a neural network model
 model = Sequential()
@@ -65,11 +78,16 @@ nb_episode_steps = 60
 nb_episodes = 1
 nb_episodes_memory = 1000
 
+try:
+    memory = pickle.load(open("memory.pkl", "rb"))
+except (FileNotFoundError, EOFError):
+    memory = SequentialMemory(limit=nb_episode_steps*nb_episodes, window_length=1)
+
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!
-memory = SequentialMemory(limit=nb_episode_steps*nb_episodes, window_length=1)
+
 #policy = BoltzmannQPolicy()
-policy = EpsGreedyQPolicy(eps=0.1)
+policy = EpsGreedyQPolicy(eps=0.01)
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
                target_model_update=1e-2, policy=policy)
 dqn.compile(Adam(lr=1e-3), metrics=['mae'])
@@ -85,12 +103,15 @@ while True:
     logger.info (f'Iteration #{n}')
 
     # Run some training
-    history = dqn.fit(env, nb_max_episode_steps=nb_episode_steps, nb_steps=nb_episode_steps*nb_episodes, visualize=True, verbose=2)
+    train_history = dqn.fit(env, nb_max_episode_steps=nb_episode_steps, nb_steps=nb_episode_steps*nb_episodes, visualize=False, verbose=2)
 
     # Save neural network weights
     dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
-    # Write training results to log file
-    rewards = history.history['episode_reward']
+    # Save memory
+    pickle.dump(memory, open("memory.pkl", "wb"))
+
+    # Write training /test results to log file
+    train_rewards = train_history.history['episode_reward']
     for i in range(0, nb_episodes):
-        episode_logger.info(f'{(n - 1)*nb_episodes + i + 1},{rewards[i]}')
+        episode_logger.info(f'{(n - 1)*nb_episodes + i + 1},{train_rewards[i]}')

@@ -11,3 +11,9 @@ register(
     entry_point='gym_co2_ventilation.envs:CO2VentilationSimulatorEnv',
     timestep_limit=60,
 )
+
+register(
+    id='CO2VentilationSimple-v0',
+    entry_point='gym_co2_ventilation.envs:CO2VentilationSimpleEnv',
+    timestep_limit=60,
+)

@@ -3,6 +3,9 @@ import gym_co2_ventilation  # This will register the custom environment
 
 import logging
 import numpy as np
+import os
+import pickle
+import requests
 import time
 
 from keras.models import Sequential
@@ -35,17 +38,21 @@ episode_logger = logging.getLogger("EpisodeLogger")
 episode_logger.setLevel(logging.INFO)
 fh = logging.FileHandler(f'co2_ventilation_episode_log_{time.strftime("%Y_%m_%d_%H%M")}.log', mode='w')
 episode_logger.addHandler(fh)
-episode_logger.info("Time,Episode, Reward")
+episode_logger.info("Time,Episode,TrainReward,TestReward")
 formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d,%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 fh.setFormatter(formatter)
 
-ENV_NAME = 'CO2VentilationSimulator-v0'
+#ENV_NAME = 'CO2VentilationProduction-v0'
+#ENV_NAME = 'CO2VentilationSimulator-v0'
+ENV_NAME = 'CO2VentilationSimple-v0'
 
 # Create the environment
 env = gym.make(ENV_NAME)
 np.random.seed(123)
 env.seed(123)
+
 nb_actions = env.action_space.n
+obs_dim = env.observation_space.shape[0]
 
 # Build a neural network model
 model = Sequential()
@@ -58,27 +65,50 @@ model.add(Dense(16))
 model.add(Activation('relu'))
 model.add(Dense(nb_actions))
 model.add(Activation('linear'))
-logger.info(model.summary())
+print(model.summary())
 
 nb_episode_steps = 60
-nb_episodes = 400
+nb_episodes = 1
+nb_episodes_memory = 1000
+
+try:
+    memory = pickle.load(open("memory.pkl", "rb"))
+except (FileNotFoundError, EOFError):
+    memory = SequentialMemory(limit=nb_episode_steps*nb_episodes, window_length=1)
 
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!
-memory = SequentialMemory(limit=nb_episode_steps*nb_episodes, window_length=1)
+
 #policy = BoltzmannQPolicy()
-policy = EpsGreedyQPolicy()
+policy = EpsGreedyQPolicy(eps=0.01)
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
                target_model_update=1e-2, policy=policy)
 dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
-# Okay, now it's time to learn something! We visualize the training here for show, but this
-# slows down training quite a lot. You can always safely abort the training prematurely using
-# Ctrl + C.
-dqn.fit(env, nb_max_episode_steps=nb_episode_steps, nb_steps=nb_episode_steps*nb_episodes, visualize=False, verbose=2)
+try:
+    dqn.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
+except (OSError):
+    logger.warning ("File not found")
 
-# After training is done, we save the final weights.
-dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
+n = 0
+while True:
+    n += 1
+    logger.info (f'Iteration #{n}')
 
-# Finally, evaluate our algorithm for 5 episodes.
-dqn.test(env, nb_episodes=10, visualize=True)
+    # Run some training
+    train_history = dqn.fit(env, nb_max_episode_steps=nb_episode_steps, nb_steps=nb_episode_steps*nb_episodes, visualize=False, verbose=2)
+
+    # Save neural network weights
+    dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
+
+    # Save memory
+    pickle.dump(memory, open("memory.pkl", "wb"))
+
+    # Run test
+    test_history = dqn.test(env, nb_episodes=1, visualize=True)
+
+    # Write training /test results to log file
+    train_rewards = train_history.history['episode_reward']
+    test_rewards = test_history.history['episode_reward']
+    for i in range(0, nb_episodes):
+        episode_logger.info(f'{(n - 1)*nb_episodes + i + 1},{train_rewards[i]},{test_rewards[i]}')
