@@ -74,7 +74,7 @@ nb_episodes_memory = 1000
 try:
     memory = pickle.load(open("memory.pkl", "rb"))
 except (FileNotFoundError, EOFError):
-    memory = SequentialMemory(limit=nb_episode_steps*nb_episodes, window_length=1)
+    memory = SequentialMemory(limit=nb_episode_steps*nb_episodes_memory, window_length=1)
 
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!
@@ -105,7 +105,7 @@ while True:
     pickle.dump(memory, open("memory.pkl", "wb"))
 
     # Run test
-    test_history = dqn.test(env, nb_episodes=1, visualize=True)
+    test_history = dqn.test(env, nb_episodes=nb_episodes, visualize=True)
 
     # Write training /test results to log file
     train_rewards = train_history.history['episode_reward']
